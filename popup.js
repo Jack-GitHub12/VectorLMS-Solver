@@ -1,11 +1,18 @@
 // popup.js
 document.addEventListener('DOMContentLoaded', async function() {
-  const statusEl = document.getElementById('status');
+  const statusCard = document.getElementById('statusCard');
+  const statusText = document.getElementById('statusText');
+  const statusDot = statusCard.querySelector('.status-dot');
   const toggleBtn = document.getElementById('toggleBtn');
   const clearQueueBtn = document.getElementById('clearQueue');
   const refreshBtn = document.getElementById('refreshStatus');
-  const queueInfoEl = document.getElementById('queueInfo');
-  const queueProgressEl = document.getElementById('queueProgress');
+  const queueCard = document.getElementById('queueCard');
+  const progressBar = document.getElementById('progressBar');
+  const completedStat = document.getElementById('completedStat');
+  const remainingStat = document.getElementById('remainingStat');
+  const currentTaskInfo = document.getElementById('currentTaskInfo');
+  const currentTaskTitle = document.getElementById('currentTaskTitle');
+  const currentTaskMeta = document.getElementById('currentTaskMeta');
 
   // Get current extension state
   async function getExtensionState() {
@@ -136,92 +143,80 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Update status
     if (state.enabled) {
-      statusEl.textContent = 'Status: Active';
-      statusEl.className = 'status active';
+      statusText.textContent = 'Active';
+      statusCard.className = 'status-card active';
+      statusDot.className = 'status-dot active';
       toggleBtn.textContent = 'Disable Solver';
       toggleBtn.className = 'danger-btn';
     } else {
-      statusEl.textContent = 'Status: Disabled';
-      statusEl.className = 'status inactive';
+      statusText.textContent = 'Disabled';
+      statusCard.className = 'status-card inactive';
+      statusDot.className = 'status-dot inactive';
       toggleBtn.textContent = 'Enable Solver';
       toggleBtn.className = 'primary-btn';
     }
 
     // Update queue information
     if (queueInfo && queueInfo.total > 0) {
-      queueInfoEl.style.display = 'block';
+      queueCard.classList.add('visible');
       
-      let progressText = `${queueInfo.current} / ${queueInfo.total} tasks`;
+      // Update progress bar
+      const progressPercent = Math.round((queueInfo.current / queueInfo.total) * 100);
+      progressBar.style.width = `${progressPercent}%`;
       
-      // Add completion information if available
-      if (queueInfo.completedCount > 0) {
-        progressText += ` (${queueInfo.completedCount} completed)`;
-      }
+      // Update stats
+      completedStat.textContent = queueInfo.completedCount || queueInfo.current;
+      remainingStat.textContent = queueInfo.actualRemaining || queueInfo.remaining;
       
-      // Add video information if available
-      if (queueInfo.videoCount > 0) {
-        progressText += ` • ${queueInfo.videoCount} videos`;
-      }
-      
-      queueProgressEl.innerHTML = progressText;
-      
-      // Add current task info
+      // Update current task info
       if (queueInfo.currentTask && queueInfo.remaining > 0) {
+        currentTaskInfo.style.display = 'block';
+        
         const taskTitle = queueInfo.currentTask.title || 'Current Task';
-        const truncatedTitle = taskTitle.length > 30 ? taskTitle.substring(0, 30) + '...' : taskTitle;
+        const truncatedTitle = taskTitle.length > 40 ? taskTitle.substring(0, 40) + '...' : taskTitle;
         
-        // Add completion indicator
         const completionIcon = queueInfo.currentTask.completed ? '✅' : '📋';
-        const completionText = queueInfo.currentTask.completed ? ' (completed)' : '';
+        currentTaskTitle.textContent = `${completionIcon} ${truncatedTitle}`;
         
-        queueProgressEl.innerHTML += `<br><small>${completionIcon} ${truncatedTitle}${completionText}</small>`;
-        
+        // Build meta information
+        let metaInfo = [];
         if (queueInfo.currentTask.isVideo && queueInfo.currentTask.timeMin > 0) {
-          queueProgressEl.innerHTML += `<br><small>⏱️ ~${queueInfo.currentTask.timeMin} min video</small>`;
+          metaInfo.push(`⏱️ ${Math.round(queueInfo.currentTask.timeMin)} min video`);
         }
-      }
-      
-      if (queueInfo.remaining > 0) {
-        // Use actual remaining if available, otherwise use queue position remaining
-        const actualRemaining = queueInfo.actualRemaining || queueInfo.remaining;
-        queueProgressEl.innerHTML += `<br><small>${actualRemaining} remaining`;
-        
-        // Show queue position vs actual remaining if different
-        if (queueInfo.actualRemaining && queueInfo.actualRemaining !== queueInfo.remaining) {
-          queueProgressEl.innerHTML += ` (${queueInfo.remaining} in queue)`;
+        if (queueInfo.currentTask.completed) {
+          metaInfo.push('Completed');
+        }
+        if (queueInfo.videoCount > 0) {
+          metaInfo.push(`${queueInfo.videoCount} total videos`);
         }
         
-        // Add total video duration if available
-        if (queueInfo.totalVideoDuration > 0) {
-          const hours = Math.floor(queueInfo.totalVideoDuration / 60);
-          const mins = queueInfo.totalVideoDuration % 60;
-          if (hours > 0) {
-            queueProgressEl.innerHTML += ` • ~${hours}h ${mins}m videos`;
-          } else {
-            queueProgressEl.innerHTML += ` • ~${mins}m videos`;
-          }
-        }
-        
-        queueProgressEl.innerHTML += `</small>`;
+        currentTaskMeta.textContent = metaInfo.join(' • ');
+      } else if (queueInfo.remaining === 0) {
+        currentTaskInfo.style.display = 'block';
+        currentTaskTitle.textContent = '🎉 All tasks completed!';
+        currentTaskMeta.textContent = 'Great job finishing your training!';
       } else {
-        queueProgressEl.innerHTML += `<br><small>✅ All complete!</small>`;
+        currentTaskInfo.style.display = 'none';
       }
     } else {
-      queueInfoEl.style.display = 'none';
+      queueCard.classList.remove('visible');
     }
   }
 
   // Show temporary feedback
   function showFeedback(message, isSuccess = true) {
-    const originalText = statusEl.textContent;
-    const originalClass = statusEl.className;
+    const originalText = statusText.textContent;
+    const originalCardClass = statusCard.className;
+    const originalDotClass = statusDot.className;
     
-    statusEl.textContent = message;
-    statusEl.className = `status ${isSuccess ? 'active' : 'inactive'}`;
+    statusText.textContent = message;
+    statusCard.className = `status-card ${isSuccess ? 'active' : 'inactive'}`;
+    statusDot.className = `status-dot ${isSuccess ? 'active' : 'inactive'}`;
     
     setTimeout(() => {
-      statusEl.textContent = originalText;
-      statusEl.className = originalClass;
+      statusText.textContent = originalText;
+      statusCard.className = originalCardClass;
+      statusDot.className = originalDotClass;
     }, 2000);
   }
 
